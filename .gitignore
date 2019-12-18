@@ -5,3 +5,5 @@
 data
 plots
 output
+*.html
+*.pdf

@@ -1,7 +1,10 @@
 ---
-title: "Data analysis and graphics for: The costs and benefits of publicising species discoveries."
-output: html_notebook
-author: GE Ryan
+title: 'Data analysis and graphics for: The costs and benefits of publicising species
+  discoveries.'
+author: "GE Ryan"
+output:
+  html_notebook: default
+  pdf_document: default
 ---
 
 
@@ -20,8 +23,7 @@ library(viridis)
 library(patchwork)
 ```
 
-```{r}
-source("functions/s1_plot_fun.R")
+```{r source functions}
 source("functions/s1_plot_fun.R")
 ```
 
@@ -37,7 +39,7 @@ example_data <- readxl::read_xlsx(
 
 example_data
 ```
-Calculate zeta score for each option
+Calculate decision score, zeta, for each option
 ```{r example_results}
 example_results <- example_data %>%
   as_tibble %>%
