@@ -27,6 +27,7 @@ library(magrittr)
 
 ```{r source functions}
 source("functions/s1_plot_fun.R")
+source("functions/find.sd.R")
 ```
 
 
@@ -198,6 +199,111 @@ numeric_data[ , which(substr(colnames(numeric_data), 1,1) == "q")] <- apply(
 )
 
 numeric_data
+```
+```{r}
+numdat <- numeric_data %>%
+  select(
+    -status,
+    -currency,
+    -consent_sp_id,
+    -consent_sp_loc,
+    -sp_loc
+  ) %>%
+  pivot_longer(
+    cols = starts_with("q"),
+    names_to = "question",
+  ) %>%
+  mutate(
+    decision = substr(
+      x = question,
+      start = 2,
+      stop = 2
+    ) %>%
+      as.integer,
+    type = substr(
+      x = question,
+      start = 4,
+      stop = 4
+    ) %>%
+      as.integer,
+    estimate = substr(
+      x = question,
+      start = 6,
+      stop = 6
+    ) %>%
+      as.integer
+  ) %>%
+  mutate(
+    decision = case_when(
+      decision == 1 ~ "Public",
+      decision == 2 ~ "Part",
+      decision == 3 ~ "Secret"
+    ),
+    type = case_when(
+      type == 1 ~ "Benefit",
+      type == 2 ~ "Cost",
+      type == 3 ~ "Probability_Leak"
+    ),
+    estimate = case_when(
+      estimate == 1 ~ "lower",
+      estimate == 2 ~ "upper",
+      estimate == 3 ~ "mid",
+      estimate == 4 ~ "probability_confidence"
+    )
+  ) %>%
+  select(
+    species,
+    decision,
+    type,
+    estimate,
+    value
+  )
+
+numdat
+```
+
+
+```{r}
+numdat_cb <- numdat %>%
+  filter(type != "Probability_Leak") %>%
+  pivot_wider(
+    names_from = estimate,
+    values_from = value
+  ) %>%
+  mutate(
+    probability_confidence = probability_confidence/100
+  )
+
+
+numdat_cb
+```
+
+
+
+```{r}
+numdat_cb_sd <- numdat_cb %>%
+  mutate(
+    sd = pmap(
+      .l = list(
+        lower = lower,
+        mid = mid,
+        upper = upper,
+        p = probability_confidence
+      ),
+      .f = find.sd,
+      
+    )
+  )
+
+numdat_cb_sd
+```
+
+```{r}
+x <- 1
+
+find.sd(
+  lower = numdat_cb$lower[x]
+)
 ```
 
 ```{r}
