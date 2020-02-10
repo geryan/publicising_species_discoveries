@@ -201,6 +201,7 @@ numeric_data[ , which(substr(colnames(numeric_data), 1,1) == "q")] <- apply(
 
 numeric_data
 ```
+
 ```{r}
 numdat <- numeric_data %>%
   select(
@@ -243,13 +244,13 @@ numdat <- numeric_data %>%
     type = case_when(
       type == 1 ~ "Benefit",
       type == 2 ~ "Cost",
-      type == 3 ~ "Probability_Leak"
+      type == 3 ~ "pleak"
     ),
     estimate = case_when(
       estimate == 1 ~ "lower",
       estimate == 2 ~ "upper",
       estimate == 3 ~ "mid",
-      estimate == 4 ~ "probability_confidence"
+      estimate == 4 ~ "pconf"
     )
   ) %>%
   select(
@@ -266,15 +267,34 @@ numdat
 
 ```{r}
 numdat_cb <- numdat %>%
-  filter(type != "Probability_Leak") %>%
+  filter(type != "pleak") %>%
   pivot_wider(
     names_from = estimate,
     values_from = value
   ) %>%
   mutate(
-    probability_confidence = probability_confidence/100
+    pconf = pconf/100
   ) %>%
-  filter(!is.na(mid))
+  filter(species != "Species2") %>%
+  mutate(
+    mid = ifelse(
+      test = is.na(mid),
+      yes = (upper - lower)/2,
+      no = mid
+    ),
+    pconf = ifelse(
+      test = is.na(pconf),
+      yes = 0.95,
+      no = pconf
+    ),
+    dist = case_when(
+      pconf == 1 ~ "triangular",
+      lower == mid ~ "exponential",
+      lo
+      #(lower == 0) & (pconf <= 0.5) ~ "", # need to tweak mode vs mean though - thou
+      TRUE ~ "lognormal"
+    )
+  )
 
 
 numdat_cb
@@ -283,8 +303,9 @@ what to do about tiger whgere low prob means can't fit typical lnorm or
 ```{r}
 numdat_cb %>%
   mutate(
-    lm = lower == mid,
-    lu = mid == upper
+    dist = case_when(
+      pc
+    )
   )
 ```
 
@@ -297,48 +318,46 @@ numdat_cb_sd <- numdat_cb %>%
         lower = lower,
         mid = mid,
         upper = upper,
-        p = probability_confidence
+        p = pconf
       ),
-      .f = find.sd,
-      
+      .f = find.sd,,
+      print.sd = FALSE
     )
-  )
+  ) %>%
+  unnest(sd)
 
 numdat_cb_sd
 ```
 
 ```{r}
-for(i in 1:38){
+# for(i in 1:38){
+# 
+#   print(paste("Yay", i))
+# 
+# x <- i
 
-  print(paste("Yay", i))
-
-x <- i
-
-#x <- 13
+x <- 35
 
 sd5 <- find.sd(
   lower = numdat_cb$lower[x],
   mid = numdat_cb$mid[x],
   upper = numdat_cb$upper[x],
-  p = numdat_cb$probability_confidence[x]
+  p = numdat_cb$pconf[x]
 )
 
-}
+# }
 ```
 
 
 
 ```{r}
-x <- 13
+x <- 5
 
 lower <- numdat_cb$lower[x]
 mid <- numdat_cb$mid[x]
 upper <- numdat_cb$upper[x]
-p <- numdat_cb$probability_confidence[x]
+p <- numdat_cb$pconf[x]
 
-  ll <- log(lower)
-  lm <- log(mid)
-  lu <- log(upper)
   ll <- log(lower)
   lm <- log(mid)
   lu <- log(upper)
@@ -379,6 +398,117 @@ p <- numdat_cb$probability_confidence[x]
     )
     
     probs_lower <- pnorm(
+      q = ll,
+      mean = lm,
+      sd = sd_seq
+    )
+    
+    diffs <- p - (probs_upper - probs_lower)
+    
+    diffs.above <- diffs[which(diffs > 0)]
+    diffs.below <- diffs[which(diffs < 0)]
+    
+    diff.above <- min(diffs.above)
+    diff.below <- max(diffs.below)
+    
+    diff <- min(diff.above, abs(diff.below))
+    
+    index.above <- which(diffs == diff.above)[1]
+    index.below <- which(diffs == diff.below)[length(which(diffs == diff.below))]
+    
+    sd.above <- sd_seq[index.above]
+    sd.below <- sd_seq[index.below]
+    
+    sd <- ifelse(
+      diff == diff.above,
+      sd.above,
+      sd.below
+    )
+    
+    sd_seq <- seq(
+      from = sd.below,
+      to = sd.above,
+      length.out = 1000
+    )
+    
+    if(print.sd){
+      print(sd)
+      print(diff)
+    }
+    
+  }
+  
+```
+
+
+```{r}
+lower <- numdat_cb$lower[x]
+most.likely <- numdat_cb$mid[x]
+upper <- numdat_cb$upper[x]
+p <- numdat_cb$pconf[x]
+
+  sigma <- 1:10
+  
+  mu <- log(most.likely) + sigma
+  
+plnorm(
+    q = ,
+    meanlog = mu,
+    sdlog = s
+  )
+```
+
+
+```{r}
+x <- 5
+
+lower <- numdat_cb$lower[x]
+most.likely <- numdat_cb$mid[x]
+upper <- numdat_cb$upper[x]
+p <- numdat_cb$pconf[x]
+
+  sigma <- 1
+  
+  mu <- log(most.likely) + (sigma^2)
+  
+  probs1 <- plnorm(
+    q = c(lower, upper),
+    meanlog = mu,
+    sdlog = sigma
+  )
+  
+  prob.width <- probs1[2] - probs1[1]
+  
+  diff <- abs(p - prob.width)
+  
+  if(diff <= tolerance){
+    return(1)
+  }
+  
+  if(prob.width > p){
+    sd_seq <- seq(
+      from = 1,
+      to = 10e6,
+      length.out = 1000
+    )
+  } else{
+    sd_seq <- seq(
+      from = 0,
+      to = 1,
+      length.out = 1000
+    )
+  }
+  
+  mu_seq <- log(most.likely) + (sigma^2)
+  
+  while(diff > tolerance){
+    probs_upper <- plnorm(
+      q = lower,
+      meanlog = mu_seq,
+      sdlog = sd_seq
+    )
+    
+    probs_lower <- plnorm(
       q = ll,
       mean = lm,
       sd = sd_seq
