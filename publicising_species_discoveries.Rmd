@@ -24,6 +24,7 @@ library(viridis)
 library(patchwork)
 library(magrittr)
 library(purrr)
+library(extraDistr)
 ```
 
 ```{r source functions}
@@ -244,12 +245,12 @@ numdat <- numeric_data %>%
     type = case_when(
       type == 1 ~ "Benefit",
       type == 2 ~ "Cost",
-      type == 3 ~ "pleak"
+      type == 3 ~ "pd"
     ),
     estimate = case_when(
       estimate == 1 ~ "lower",
       estimate == 2 ~ "upper",
-      estimate == 3 ~ "mid",
+      estimate == 3 ~ "most.likely",
       estimate == 4 ~ "pconf"
     )
   ) %>%
@@ -259,6 +260,9 @@ numdat <- numeric_data %>%
     type,
     estimate,
     value
+  ) %>%
+  filter(
+    species != "Species2"
   )
 
 numdat
@@ -266,8 +270,8 @@ numdat
 
 
 ```{r}
-numdat_cb <- numdat %>%
-  filter(type != "pleak") %>%
+cost_benefit <- numdat %>%
+  filter(type != "pd") %>%
   pivot_wider(
     names_from = estimate,
     values_from = value
@@ -277,10 +281,10 @@ numdat_cb <- numdat %>%
   ) %>%
   filter(species != "Species2") %>%
   mutate(
-    mid = ifelse(
-      test = is.na(mid),
+    most.likely = ifelse(
+      test = is.na(most.likely),
       yes = (upper - lower)/2,
-      no = mid
+      no = most.likely
     ),
     pconf = ifelse(
       test = is.na(pconf),
@@ -289,329 +293,240 @@ numdat_cb <- numdat %>%
     ),
     dist = case_when(
       pconf == 1 ~ "triangular",
-      lower == mid ~ "exponential",
-      lo
-      #(lower == 0) & (pconf <= 0.5) ~ "", # need to tweak mode vs mean though - thou
+      lower == most.likely & lower != 0 & pconf > 0.5 ~ "triangular",
+      lower == most.likely ~ "exponential",
       TRUE ~ "lognormal"
     )
   )
 
 
-numdat_cb
-```
-what to do about tiger whgere low prob means can't fit typical lnorm or 
-```{r}
-numdat_cb %>%
-  mutate(
-    dist = case_when(
-      pc
-    )
-  )
+cost_benefit
 ```
 
-
 ```{r}
-numdat_cb_sd <- numdat_cb %>%
+cost_benefit_lognormal <- cost_benefit %>%
+  filter(dist == "lognormal") %>%
   mutate(
-    sd = pmap(
+    value = pmap(
       .l = list(
         lower = lower,
-        mid = mid,
+        most.likely = most.likely,
         upper = upper,
         p = pconf
       ),
-      .f = find.sd,,
-      print.sd = FALSE
+      .f = find.sigma,
+      print.sigma = FALSE
     )
   ) %>%
-  unnest(sd)
+  unnest(value)
 
-numdat_cb_sd
+cost_benefit_lognormal
 ```
 
 ```{r}
-# for(i in 1:38){
-# 
-#   print(paste("Yay", i))
-# 
-# x <- i
+cost_benefit_exponential <- cost_benefit %>%
+  filter(dist == "exponential") %>%
+  mutate(
+    value = pmap(
+      .l = list(
+        lower = lower,
+        upper = upper,
+        p = pconf
+      ),
+      .f = find.lambda,
+    )
+  ) %>%
+  unnest(value)
 
-x <- 35
+cost_benefit_exponential
+```
 
-sd5 <- find.sd(
-  lower = numdat_cb$lower[x],
-  mid = numdat_cb$mid[x],
-  upper = numdat_cb$upper[x],
-  p = numdat_cb$pconf[x]
-)
+```{r}
+cost_benefit_triangular <- cost_benefit %>%
+  filter(dist == "triangular") %>%
+  mutate(
+    value = pmap(
+      .l = list(
+        lower = lower,
+        most.likely = most.likely,
+        upper = upper,
+        p = pconf
+      ),
+      .f = find.b,
+    )
+  ) %>%
+  unnest(value)
 
-# }
+cost_benefit_triangular
+```
+
+```{r}
+cost_benefit_all <- bind_rows(
+  cost_benefit_lognormal,
+  cost_benefit_exponential,
+  cost_benefit_triangular
+) %>%
+   mutate(
+    samples = pmap(
+      .l = list(
+        dist = dist,
+        most.likely = most.likely,
+        value = value
+      ),
+      .f = sample.fun,
+      n = 1000
+    )
+  )
+
+cost_benefit_all
+```
+
+```{r}
+pd_all <- numdat %>%
+  filter(type == "pd") %>%
+  mutate(
+    pd = value/100
+  ) %>%
+  select(
+    species,
+    decision,
+    pd
+  )
+
+pd_all
+```
+
+```{r}
+cost_public <- cost_benefit_all %>%
+  filter(decision == "Public") %>%
+  filter(type == "Cost") %>%
+  select(
+    species,
+    Cost_public = samples
+  )
+
+cost_public
 ```
 
 
 
 ```{r}
+zeta_estimates <- cost_benefit_all %>%
+  pivot_wider(
+    id_cols = c(
+      species, decision
+    ),
+    names_from = type,
+    values_from = samples
+  ) %>%
+  arrange(
+    species, decision
+  ) %>%
+  full_join(
+    cost_public
+  ) %>%
+  full_join(
+    pd_all
+  ) %>%
+  mutate(
+    pd = ifelse(
+      test = is.na(pd),
+      yes = 1,
+      pd
+    )
+  ) %>%
+  mutate(
+    id = list(1:1000)
+  ) %>%
+  unnest(Benefit, Cost, Cost_public, id) %>%
+  mutate(
+    zeta = pmap(
+      .l = list(
+        Bd = Benefit,
+        Cd = Cost,
+        pd = pd,
+        Cp = Cost_public
+      ),
+      .f = calculate.zeta
+    )
+  ) %>%
+  unnest(zeta)
+
+zeta_estimates
+```
+
+```{r}
+ggplot(zeta_estimates) +
+  geom_violin(aes(x = decision, y = zeta))
+```
+
+```{r}
+best_option <- zeta_estimates %>%
+  pivot_wider(
+    id_cols = c(
+      species,
+      id
+    ),
+    names_from = decision,
+    values_from = zeta
+  ) %>%
+  mutate(
+    best = case_when(
+      max(Public, Part, Secret) == Public ~ "Public",
+      max(Public, Part, Secret) == Part ~ "Part",
+      max(Public, Part, Secret) == Secret ~ "Secret"
+    )
+  )
+
+best_option
+```
+
+
+```{r}
+
+%>%
+  
+
 x <- 5
 
-lower <- numdat_cb$lower[x]
-mid <- numdat_cb$mid[x]
-upper <- numdat_cb$upper[x]
-p <- numdat_cb$pconf[x]
-
-  ll <- log(lower)
-  lm <- log(mid)
-  lu <- log(upper)
-  
-  probs1 <- pnorm(
-    q = c(ll, lu),
-    mean = lm,
-    sd = 1
-  )
-  
-  prob.width <- probs1[2] - probs1[1]
-  
-  diff <- abs(p - prob.width)
-  
-  if(diff <= tolerance){
-    return(1)
-  }
-  
-  if(prob.width > p){
-    sd_seq <- seq(
-      from = 1,
-      to = 10e6,
-      length.out = 1000
-    )
-  } else{
-    sd_seq <- seq(
-      from = 0,
-      to = 1,
-      length.out = 1000
-    )
-  }
-  
-  while(diff > tolerance){
-    probs_upper <- pnorm(
-      q = lu,
-      mean = lm,
-      sd = sd_seq
-    )
-    
-    probs_lower <- pnorm(
-      q = ll,
-      mean = lm,
-      sd = sd_seq
-    )
-    
-    diffs <- p - (probs_upper - probs_lower)
-    
-    diffs.above <- diffs[which(diffs > 0)]
-    diffs.below <- diffs[which(diffs < 0)]
-    
-    diff.above <- min(diffs.above)
-    diff.below <- max(diffs.below)
-    
-    diff <- min(diff.above, abs(diff.below))
-    
-    index.above <- which(diffs == diff.above)[1]
-    index.below <- which(diffs == diff.below)[length(which(diffs == diff.below))]
-    
-    sd.above <- sd_seq[index.above]
-    sd.below <- sd_seq[index.below]
-    
-    sd <- ifelse(
-      diff == diff.above,
-      sd.above,
-      sd.below
-    )
-    
-    sd_seq <- seq(
-      from = sd.below,
-      to = sd.above,
-      length.out = 1000
-    )
-    
-    if(print.sd){
-      print(sd)
-      print(diff)
-    }
-    
-  }
-  
-```
+lower <- cost_benefit$lower[x]
+most.likely <- cost_benefit$most.likely[x]
+upper <- cost_benefit$upper[x]
+p <- cost_benefit$pconf[x]
 
 
-```{r}
-lower <- numdat_cb$lower[x]
-most.likely <- numdat_cb$mid[x]
-upper <- numdat_cb$upper[x]
-p <- numdat_cb$pconf[x]
-
-  sigma <- 1:10
-  
-  mu <- log(most.likely) + sigma
-  
-plnorm(
-    q = ,
-    meanlog = mu,
-    sdlog = s
-  )
-```
-
-
-```{r}
-x <- 5
-
-lower <- numdat_cb$lower[x]
-most.likely <- numdat_cb$mid[x]
-upper <- numdat_cb$upper[x]
-p <- numdat_cb$pconf[x]
-
-  sigma <- 1
-  
-  mu <- log(most.likely) + (sigma^2)
-  
-  probs1 <- plnorm(
-    q = c(lower, upper),
-    meanlog = mu,
-    sdlog = sigma
-  )
-  
-  prob.width <- probs1[2] - probs1[1]
-  
-  diff <- abs(p - prob.width)
-  
-  if(diff <= tolerance){
-    return(1)
-  }
-  
-  if(prob.width > p){
-    sd_seq <- seq(
-      from = 1,
-      to = 10e6,
-      length.out = 1000
-    )
-  } else{
-    sd_seq <- seq(
-      from = 0,
-      to = 1,
-      length.out = 1000
-    )
-  }
-  
-  mu_seq <- log(most.likely) + (sigma^2)
-  
-  while(diff > tolerance){
-    probs_upper <- plnorm(
-      q = lower,
-      meanlog = mu_seq,
-      sdlog = sd_seq
-    )
-    
-    probs_lower <- plnorm(
-      q = ll,
-      mean = lm,
-      sd = sd_seq
-    )
-    
-    diffs <- p - (probs_upper - probs_lower)
-    
-    diffs.above <- diffs[which(diffs > 0)]
-    diffs.below <- diffs[which(diffs < 0)]
-    
-    diff.above <- min(diffs.above)
-    diff.below <- max(diffs.below)
-    
-    diff <- min(diff.above, abs(diff.below))
-    
-    index.above <- which(diffs == diff.above)[1]
-    index.below <- which(diffs == diff.below)[length(which(diffs == diff.below))]
-    
-    sd.above <- sd_seq[index.above]
-    sd.below <- sd_seq[index.below]
-    
-    sd <- ifelse(
-      diff == diff.above,
-      sd.above,
-      sd.below
-    )
-    
-    sd_seq <- seq(
-      from = sd.below,
-      to = sd.above,
-      length.out = 1000
-    )
-    
-    if(print.sd){
-      print(sd)
-      print(diff)
-    }
-    
-  }
-  
-```
-
-
-```{r}
-l <- numeric_data$q1.1.1[[1]]
-u <- numeric_data$q1.1.2[[1]]
-m <- numeric_data$q1.1.3[[1]]
-
-ll <- log(l)
-lu <- log(u)
-lm <- log(m)
-
-ll
-lu
-lm
-```
-
-```{r}
-sd <- 1
-
-probs <- pnorm(
-  q = c(ll, lu),
-  mean = lm,
-  sd = sd
+aa <- find.b(
+  lower = lower,
+  most.likely = most.likely,
+  upper = upper,
+  p = p,
+  print.b = TRUE
 )
 
-
-
-probs
-
-probs[2] - probs[1]
-
+aa
 ```
 
 
 ```{r}
-lower <- numeric_data$q1.1.1[1]
-upper <- numeric_data$q1.1.2[1]
-mid <- numeric_data$q1.1.3[1]
-p <- numeric_data$q1.1.4[1]/100
+x <- 6
 
-#tolerance <- 10e-9
+lower <- cost_benefit$lower[x]
+most.likely <- cost_benefit$most.likely[x]
+upper <- cost_benefit$upper[x]
+p <- cost_benefit$pconf[x]
 
-aa <- find.sd(
+tolerance <- 10e-7
+
+
+
+aa <- find.lambda(
   lower = lower,
   upper = upper,
-  mid = mid,
   p = p,
-  tolerance = 1e-9
+  print.lambda = TRUE
 )
 ```
 
-```{r}
-zz <- pnorm(
-  q = c(ll, lu),
-  mean = lm,
-  sd = aa
-)
-
-zz
-
-zz[2] - zz[1]
-```
 
 ```{r}
 numeric_results <- numeric_data %>%

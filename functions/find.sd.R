@@ -1,6 +1,6 @@
 find.sd <- function(
   lower,
-  mid,
+  most.likely,
   upper,
   p,
   tolerance = 1e-7,
@@ -9,7 +9,7 @@ find.sd <- function(
   
 
   ll <- log(lower)
-  lm <- log(mid)
+  lm <- log(most.likely)
   lu <- log(upper)
   
   probs1 <- pnorm(
