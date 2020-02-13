@@ -68,19 +68,17 @@ example_results <- example_data %>%
         "Public"
       )
     ),
+    involve = recode(
+      involve,
+      "Local community group" = "Local community\ngroup",
+    ),
     disclose = factor(
       disclose,
       levels = c(
-        "Nothing",
-        "Province",
-        "Protected area",
-        "Exact location"
+        "Public",
+        "Part",
+        "Secret"
       ),
-    ),
-    disclose = recode(
-      disclose,
-      "Protected area" = "Protected\narea",
-      "Exact location" = "Exact\nlocation"
     )
   ) %>%
   group_by(species) %>%
@@ -131,7 +129,7 @@ figure_1 <- ggplot(example_results) +
       angle = 0
     ),
     axis.text.x = element_text(
-      angle = 90
+      angle = 270
     )#,
     #legend.position = "bottom"
   ) +
@@ -826,7 +824,8 @@ figure_3a <- ggplot(best_option_plot) +
     guide = guide_legend(
       title = "Decision\nto disclose",
       direction = "vertical"
-    ) 
+    )
+    #guide = FALSE
   ) +
   ylim(c(0,1)) +
   theme(
@@ -856,13 +855,15 @@ figure_3b <- ggplot(worst_option_plot) +
     guide = guide_legend(
       title = "Decision\nto disclose",
       direction = "vertical"
-    ) 
+    )
+    #guide = FALSE
   ) +
   ylim(c(0,1)) +
   theme(
     axis.text.x = element_text(
       angle = 270
     )
+    
   )
 
 figure_3b
