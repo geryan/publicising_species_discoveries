@@ -41,15 +41,14 @@ plot_fun_fig_2_violin <- function(
       ) 
     ) +
     theme(
-      # axis.text.x = element_text(
-      #   angle = 270
-      # ),
-      axis.text.x = element_blank(),
+      axis.text.x = element_text(
+        angle = 270
+      ),
       axis.title.x = element_text(
-        size = textsize
+        size = 9
       ),
       axis.title.y = element_text(
-        size = textsize
+        size = 9
       )
     ) +
     facet_wrap(~species) +

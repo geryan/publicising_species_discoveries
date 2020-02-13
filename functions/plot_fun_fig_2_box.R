@@ -4,7 +4,8 @@ plot_fun_fig_2_box <- function(
   limits = NULL,
   xlab = TRUE,
   ylab = TRUE,
-  textsize = 9
+  textsize = 9,
+  xtext = TRUE
 ){
   
   library(ggplot2)
@@ -41,10 +42,11 @@ plot_fun_fig_2_box <- function(
       ) 
     ) +
     theme(
-      # axis.text.x = element_text(
-      #   angle = 270
-      # ),
       axis.text.x = element_blank(),
+      axis.text.y = element_text(
+        size = 8
+      ),
+      #axis.text.x = element_blank(),
       axis.title.x = element_text(
         size = textsize
       ),
@@ -54,7 +56,8 @@ plot_fun_fig_2_box <- function(
     ) +
     facet_wrap(~species) +
     xlab("") +
-    ylab("")
+    ylab("") + 
+    expand_limits(y = 0)
   
   
   if(!is.null(limits)){
@@ -84,6 +87,16 @@ plot_fun_fig_2_box <- function(
   if(ylab){
     result <- result +
       ylab("Decision score")
+  }
+  
+  if(xtext) {
+    result <- result  +
+      theme(
+        axis.text.x = element_text(
+          angle = 270,
+          size = 8
+        )
+      )
   }
   
   return(result)
