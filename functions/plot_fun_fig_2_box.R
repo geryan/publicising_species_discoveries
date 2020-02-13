@@ -3,7 +3,8 @@ plot_fun_fig_2_box <- function(
   data,
   limits = NULL,
   xlab = TRUE,
-  ylab = TRUE
+  ylab = TRUE,
+  textsize = 9
 ){
   
   library(ggplot2)
@@ -33,15 +34,27 @@ plot_fun_fig_2_box <- function(
       values = viridis(3)[3:1],
       guide = guide_legend(
         title = "Decision\nto disclose",
-        direction = "vertical"
+        direction = "vertical",
+        title.theme = element_text(
+          size = textsize
+        )
       ) 
     ) +
     theme(
-      axis.text.x = element_text(
-        angle = 270
+      # axis.text.x = element_text(
+      #   angle = 270
+      # ),
+      axis.text.x = element_blank(),
+      axis.title.x = element_text(
+        size = textsize
+      ),
+      axis.title.y = element_text(
+        size = textsize
       )
     ) +
-    facet_wrap(~species)
+    facet_wrap(~species) +
+    xlab("") +
+    ylab("")
   
   
   if(!is.null(limits)){
@@ -65,12 +78,12 @@ plot_fun_fig_2_box <- function(
   
   if(xlab){
     result <- result +
-      xlab("Decision to disclose")
+      xlab("Decision\nto disclose")
   }
   
   if(ylab){
     result <- result +
-      ylab("Decision\nscore")
+      ylab("Decision score")
   }
   
   return(result)

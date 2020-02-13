@@ -1,9 +1,10 @@
-plot_fun_fig_1_violin <- function(
+plot_fun_fig_2_violin <- function(
   species,
   data,
   limits = NULL,
   xlab = TRUE,
-  ylab = TRUE
+  ylab = TRUE,
+  textsize = 9
 ){
   
   library(ggplot2)
@@ -33,21 +34,27 @@ plot_fun_fig_1_violin <- function(
       values = viridis(3)[3:1],
       guide = guide_legend(
         title = "Decision\nto disclose",
-        direction = "vertical"
+        direction = "vertical",
+        title.theme = element_text(
+          size = textsize
+        )
       ) 
     ) +
     theme(
-      axis.text.x = element_text(
-        angle = 270
+      # axis.text.x = element_text(
+      #   angle = 270
+      # ),
+      axis.text.x = element_blank(),
+      axis.title.x = element_text(
+        size = textsize
       ),
-      strip.text = element_text(
-        
+      axis.title.y = element_text(
+        size = textsize
       )
     ) +
     facet_wrap(~species) +
     xlab("") +
     ylab("")
-  
   
   if(!is.null(limits)){
     limlow <- limits %>%
@@ -75,7 +82,7 @@ plot_fun_fig_1_violin <- function(
   
   if(ylab){
     result <- result +
-      ylab("Decision\nscore")
+      ylab("Decision score")
   }
   
   return(result)
