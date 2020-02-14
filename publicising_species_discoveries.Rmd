@@ -109,12 +109,14 @@ figure_1 <- ggplot(example_results) +
     aes(
       x = disclose,
       y = zeta,
-      colour = involve,
-      shape = optimal,
-      size = optimal
+      colour = involve#,
+      #shape = optimal,
+      #size = optimal
     ),
-    position = position_dodge(
-      width = 0.1)
+    size = 4#,
+    # position = position_dodge(
+    #   width = 0.1
+    # )
   ) +
   facet_wrap(
     facets = ~ species,
@@ -141,21 +143,21 @@ figure_1 <- ggplot(example_results) +
       title = "Decision to\ninvolve",
       direction = "vertical"
     )
-  ) +
-  scale_shape_manual(
-    values = c(19, 17),
-    guide = guide_legend(
-      title = "Decision is\noptimal?",
-      direction = "vertical"
-    )
-  ) +
-  scale_size_manual(
-    values = c(4, 5),
-    guide = guide_legend(
-      title = "Decision is\noptimal?",
-      direction = "vertical"
-    )
-  ) 
+  ) #+
+  # scale_shape_manual(
+  #   values = c(19, 17),
+  #   guide = guide_legend(
+  #     title = "Decision is\noptimal?",
+  #     direction = "vertical"
+  #   )
+  # ) +
+  # scale_size_manual(
+  #   values = c(4, 5),
+  #   guide = guide_legend(
+  #     title = "Decision is\noptimal?",
+  #     direction = "vertical"
+  #   )
+  # ) 
 
 figure_1
 ```
@@ -558,11 +560,11 @@ zeta_estimates_limits <- zeta_estimates %>%
   summarise(
     p2.5 = quantile(
       x = zeta,
-      probs = 0.025
+      probs = 0.05
     ),
     p97.5 = quantile(
       x = zeta,
-      probs = 0.975
+      probs = 0.95
     )
   ) %>%
   group_by(species) %>%
@@ -574,89 +576,52 @@ zeta_estimates_limits <- zeta_estimates %>%
 zeta_estimates_limits
 ```
 
+```{r}
+zeta_estimates_limits2 <- zeta_estimates %>%
+  group_by(species, decision) %>%
+  summarise(
+    p2.5 = quantile(
+      x = zeta,
+      probs = 0.25
+    ),
+    p97.5 = quantile(
+      x = zeta,
+      probs = 0.75
+    )
+  ) %>%
+  group_by(species) %>%
+  summarise(
+    lower = min(p2.5),
+    upper = max(p97.5)
+  )
+
+zeta_estimates_limits2
+```
+
+
 Plot results for figure 2
 
 
-Assemble violin plots
-```{r figure_2_v}
-fig2_v_list <- mapply(
-  FUN = plot_fun_fig_2_violin,
-  species = unique(zeta_estimates$species),
-  xlab = c(
-    FALSE,
-    FALSE,
-    FALSE,
-    TRUE,
-    TRUE,
-    TRUE,
-    TRUE
-  ),
-  ylab = c(
-    TRUE,
-    FALSE,
-    FALSE,
-    FALSE,
-    TRUE,
-    FALSE,
-    FALSE
-  ),
-  MoreArgs = list(
-    data = zeta_estimates,
-    limits = zeta_estimates_limits,
-    textsize = 8
-  ),
-  SIMPLIFY = FALSE
-)
-
-
-figure_2_v_wide <- fig2_v_list[[1]] +
-  fig2_v_list[[2]] +
-  fig2_v_list[[3]] +
-  fig2_v_list[[4]] +
-  fig2_v_list[[5]] +
-  fig2_v_list[[6]] +
-  fig2_v_list[[7]] +
-  guide_area() +
-  plot_layout(ncol = 4) +
-  plot_layout(guides = "collect")
-
-
-figure_2_v_wide
-```
-
-```{r figure_2_v_wide png}
-png(
-  filename = "plots/figure_2_v_wide.png",
-  width = 20,
-  height = 12.5,
-  units = "cm",
-  res = 300
-)
-figure_2_v_wide
-dev.off()
-```
-
-
 Assemble boxplots
-```{r figure_2_b}
-fig2_b_list <- mapply(
+```{r figure_2}
+fig2_list <- mapply(
   FUN = plot_fun_fig_2_box,
   species = unique(zeta_estimates$species),
-  xlab = c(
+   xlab = c(
+    FALSE,
     FALSE,
     FALSE,
     FALSE,
     FALSE,
     TRUE,
-    TRUE,
-    TRUE
+    FALSE
   ),
   ylab = c(
     TRUE,
     FALSE,
     FALSE,
     FALSE,
-    TRUE,
+    FALSE,
     FALSE,
     FALSE
   ),
@@ -664,7 +629,7 @@ fig2_b_list <- mapply(
     FALSE,
     FALSE,
     FALSE,
-    TRUE,
+    FALSE,
     TRUE,
     TRUE,
     TRUE
@@ -678,32 +643,220 @@ fig2_b_list <- mapply(
 )
 
 
-figure_2_b_wide <- fig2_b_list[[1]] +
-  fig2_b_list[[2]] +
-  fig2_b_list[[3]] +
-  fig2_b_list[[4]] +
-  fig2_b_list[[5]] +
-  fig2_b_list[[6]] +
-  fig2_b_list[[7]] +
+figure_2 <- fig2_list[[1]] +
+  fig2_list[[2]] +
+  fig2_list[[3]] +
+  fig2_list[[4]] +
+  fig2_list[[5]] +
+  fig2_list[[6]] +
+  fig2_list[[7]] +
+  guide_area() +
+  plot_layout(ncol = 4) +
+  plot_layout(guides = "collect")
+
+figure_2
+```
+
+```{r}
+fig2_list2 <- mapply(
+  FUN = plot_fun_fig_2_box_2,
+  species = unique(zeta_estimates$species),
+   xlab = c(
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE
+  ),
+  ylab = c(
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE
+  ),
+  xtext = c(
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    TRUE,
+    TRUE
+  ),
+  MoreArgs = list(
+    data = zeta_estimates,
+    limits = zeta_estimates_limits2,
+    textsize = 10
+  ),
+  SIMPLIFY = FALSE
+)
+
+fig2_list2[[1]]
+```
+
+```{r}
+f2legend <- get_legend(fig2_list2[[1]])
+
+f2 <- plot_grid(
+  NULL,
+  NULL,
+  fig2_list2[[1]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list2[[2]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list2[[3]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list2[[4]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list2[[5]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list2[[6]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list2[[7]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
+  #f2legend,
+  ncol = 2,
+  align = "hv",
+  labels = c(
+    "",
+    "",
+    "Alpine tree-frog",
+    "Giant Ibis",
+    "Red Handfish",
+    "Smooth Newt",
+    "Species1",
+    "Tiger",
+    "Wollemi Pine"#,
+    #""
+  ),
+  #label_fontface = "plain",
+  label_size = 12,
+  vjust = -0.01,
+  hjust = 0,
+  rel_heights = c(0.1, 1, 1, 1, 1)
+)
+
+f2
+```
+
+```{r}
+png(
+  filename = "plots/f2.png",
+  width = 20,
+  height = 20,
+  units = "cm",
+  res = 300
+)
+f2
+dev.off()
+```
+
+```{r}
+
+figure_22 <- fig2_list2[[1]] +
+  fig2_list2[[2]] +
+  fig2_list2[[3]] +
+  fig2_list2[[4]] +
+  fig2_list2[[5]] +
+  fig2_list2[[6]] +
+  fig2_list2[[7]] +
+  guide_area() +
+  plot_layout(ncol = 4) +
+  plot_layout(guides = "collect")
+
+figure_22
+```
+
+```{r}
+png(
+  filename = "plots/figure_22.png",
+  width = 30,
+  height = 20,
+  units = "cm",
+  res = 300
+)
+figure_22
+dev.off()
+```
+
+
+```{r figure_2 png}
+png(
+  filename = "plots/figure_2.png",
+  width = 20,
+  height = 15,
+  units = "cm",
+  res = 300
+)
+figure_2
+dev.off()
+```
+
+```{r}
+figs1_list <- mapply(
+  FUN = plot_fun_fig_2_box,
+  species = unique(zeta_estimates$species),
+   xlab = c(
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    TRUE,
+    FALSE
+  ),
+  ylab = c(
+    TRUE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE
+  ),
+  xtext = c(
+    FALSE,
+    FALSE,
+    FALSE,
+    FALSE,
+    TRUE,
+    TRUE,
+    TRUE
+  ),
+  MoreArgs = list(
+    data = zeta_estimates,
+    textsize = 9
+  ),
+  SIMPLIFY = FALSE
+)
+
+
+figure_s1 <- figs1_list[[1]] +
+  figs1_list[[2]] +
+  figs1_list[[3]] +
+  figs1_list[[4]] +
+  figs1_list[[5]] +
+  figs1_list[[6]] +
+  figs1_list[[7]] +
   guide_area() +
   plot_layout(ncol = 4) +
   plot_layout(guides = "collect")
 
 
-figure_2_b_wide
+figure_s1
 ```
 
-```{r figure_2_b_wide png}
+
+```{r figure_s1 png}
 png(
-  filename = "plots/figure_2_b_wide.png",
+  filename = "plots/figure_s1.png",
   width = 20,
-  height = 12.5,
+  height = 15,
   units = "cm",
   res = 300
 )
-figure_2_b_wide
+figure_s1
 dev.off()
 ```
+
 
 
 

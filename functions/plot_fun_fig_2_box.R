@@ -29,7 +29,8 @@ plot_fun_fig_2_box <- function(
     ) + 
     geom_hline(
       yintercept = 0,
-      colour = "darkgrey"
+      colour = "darkgrey",
+      size = 1
     ) +
     scale_fill_manual(
       values = viridis(3)[3:1],
@@ -44,15 +45,10 @@ plot_fun_fig_2_box <- function(
     theme(
       axis.text.x = element_blank(),
       axis.text.y = element_text(
-        size = 8
+        size = 7
       ),
-      #axis.text.x = element_blank(),
-      axis.title.x = element_text(
-        size = textsize
-      ),
-      axis.title.y = element_text(
-        size = textsize
-      )
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank()
     ) +
     facet_wrap(~species) +
     xlab("") +
@@ -81,12 +77,23 @@ plot_fun_fig_2_box <- function(
   
   if(xlab){
     result <- result +
-      xlab("Decision\nto disclose")
+      xlab("Decision to disclose") +
+      theme(
+        axis.title.x = element_text(
+          size = textsize,
+          hjust = 1
+        )
+      )
   }
   
   if(ylab){
     result <- result +
-      ylab("Decision score")
+      ylab("Decision\nscore") +
+      theme(
+        axis.title.y = element_text(
+          size = textsize
+        )
+      )
   }
   
   if(xtext) {
