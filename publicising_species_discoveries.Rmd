@@ -461,7 +461,7 @@ distribution_table <- cost_benefit_all %>%
 distribution_table
 ```
 
-Write out table s2
+Write out table s3
 ```{r write_table_s3}
 write.csv(
   x = distribution_table,
@@ -1062,6 +1062,41 @@ best_option_table <-  best_option_plot %>%
 best_option_table
 ```
 
+```{r}
+worst_option_table <-  worst_option_plot %>%
+  pivot_wider(
+    id_cols = species,
+    names_from = worst,
+    values_from = prop.worst
+  ) %>%
+  select(
+    species,
+    Public,
+    Part,
+    Secret
+  )
+
+worst_option_table
+```
+
+Write out table s4a
+```{r write_table_s4a}
+write.csv(
+  x = best_option_table,
+  file = "output/table_s4a.csv",
+  row.names = FALSE
+)
+```
+
+Write out table s4b
+```{r write_table_s4b}
+write.csv(
+  x = worst_option_table,
+  file = "output/table_s4b.csv",
+  row.names = FALSE
+)
+```
+
 
 ```{r}
 net_benefit_table <- best_option %>%
@@ -1069,13 +1104,22 @@ net_benefit_table <- best_option %>%
     species
   ) %>%
   summarise(
-    p_max_positive = sum(max_positive)/1000,
-    p_pub_positive = sum(pub_positive)/1000,
-    p_par_positive = sum(par_positive)/1000,
-    p_sec_positive = sum(sec_positive)/1000
+    Best = sum(max_positive)/1000,
+    Public = sum(pub_positive)/1000,
+    Part = sum(par_positive)/1000,
+    Secret = sum(sec_positive)/1000
   )
 
 net_benefit_table
+```
+
+Write out table s5
+```{r write_table_s5}
+write.csv(
+  x = net_benefit_table,
+  file = "output/table_s5.csv",
+  row.names = FALSE
+)
 ```
 
 
@@ -1087,13 +1131,6 @@ net_benefit_plot <- net_benefit_table %>%
     values_to = "Proportion positive"
   ) %>%
   mutate(
-    Decision = recode(
-      Decision,
-      p_max_positive = "Best",
-      p_pub_positive = "Public",
-      p_par_positive = "Part",
-      p_sec_positive = "Secret"
-    ),
     Decision = factor(
       x = Decision,
       levels = c(
