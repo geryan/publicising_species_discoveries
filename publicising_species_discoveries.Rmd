@@ -32,9 +32,11 @@ library(cowplot)
 Load functions
 ```{r source functions}
 source("functions/calculate.zeta.R")
+source("functions/cumulative.density.R")
 source("functions/find.b.R")
 source("functions/find.lambda.R")
 source("functions/find.sigma.R")
+source("functions/plot_cd.R")
 source("functions/plot_fun_fig_2_box.R")
 source("functions/plot_fun_fig_2_box_2.R")
 source("functions/plot_fun_fig_2_violin.R")
@@ -1235,7 +1237,7 @@ zeta_ranges
 ```
 
 ```{r}
-zeta_dominance <- zeta_ranges %>%
+zeta_cd_wide <- zeta_ranges %>%
   rowwise %>%
   mutate(
     Public = cumulative.density(
@@ -1259,32 +1261,83 @@ zeta_dominance <- zeta_ranges %>%
       nsamples = nsamples,
       decision = "Secret"
     )
-  ) %>%
+  ) 
+
+zeta_cd_wide
+```
+
+
+```{r}
+zeta_cd <- zeta_cd_wide %>%
   pivot_longer(
     cols = c(Public, Part, Secret),
     names_to = "decision",
     values_to = "cd"
+  ) %>%
+  mutate(
+    decision = factor(
+      decision,
+      levels = c(
+        "Public",
+        "Part",
+        "Secret"
+      )
+    )
+  )
+
+zeta_cd
+```
+
+```{r}
+zeta_dominance <- zeta_cd_wide %>%
+  group_by(species) %>%
+  summarise(
+    Public_Part   = sum(Public <= Part)   == nsamples,
+    Public_Secret = sum(Public <= Secret) == nsamples,
+    Part_Public   = sum(Part <= Public)   == nsamples,
+    Part_Secret   = sum(Part <= Secret)   == nsamples,
+    Secret_Public = sum(Secret <= Public) == nsamples,
+    Secret_Part   = sum(Secret <= Part)   == nsamples
+  ) %>%
+  pivot_longer(
+    cols = -species,
+    names_to = "dominance",
+    values_to = "dominates"
+  ) %>%
+  mutate(
+    dominant = sub(
+      pattern = "_.*",
+      "",
+      dominance
+    ),
+    dominated = sub(
+      pattern = ".*_",
+      "",
+      dominance
+    )
+  ) %>%
+  select(species, dominant, dominates, dominated) %>%
+  pivot_wider(
+    id_cols = c(species, dominant),
+    names_from = dominated,
+    values_from = dominates
   )
 
 zeta_dominance
 ```
 
 ```{r}
-dominance_limits <- zeta_estimates_minmax %>%
-  select(-min, -max) %>%
-  mutate(
-    lower = c(
-      
-    ),
-    upper = c(
-      
-    )
-  )
+write.csv(
+  x = zeta_dominance,
+  file = "output/table_s6.csv",
+  row.names = FALSE
+)
+
 ```
 
 
 ```{r}
-ggplot(zeta_dominance) +
+ggplot(zeta_cd) +
   geom_line(
     aes(
       x = value,
@@ -1301,7 +1354,7 @@ ggplot(zeta_dominance) +
 
 
 ```{r}
-Zeta_dominance_limits <- zeta_estimates %>%
+Zeta_cd_limits <- zeta_estimates %>%
   group_by(species, decision) %>%
   summarise(
     p2.5 = quantile(
@@ -1319,14 +1372,14 @@ Zeta_dominance_limits <- zeta_estimates %>%
     upper = max(p97.5)
   )
 
-Zeta_dominance_limits
+Zeta_cd_limits
 ```
 
 
 dominance plots
 ```{r}
 figd_list <- mapply(
-  FUN = plot_dominance,
+  FUN = plot_cd,
   species = unique(zeta_estimates$species),
    xlab = c(
     FALSE,
@@ -1357,8 +1410,8 @@ figd_list <- mapply(
   # ),
   xtext = TRUE,
   MoreArgs = list(
-    data = zeta_dominance,
-    limits = Zeta_dominance_limits,
+    data = zeta_cd,
+    limits = Zeta_cd_limits,
     textsize = 10
   ),
   SIMPLIFY = FALSE

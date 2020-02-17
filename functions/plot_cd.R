@@ -1,4 +1,4 @@
-plot_cd <- function(
+plot_dominance <- function(
   species,
   data,
   limits = NULL,
