@@ -866,6 +866,38 @@ dev.off()
 
 
 
+```{r}
+ggplot(zeta_estimates %>% filter(species == "Alpine tree-frog")) +
+  geom_density(
+    aes(
+      x = zeta,
+      colour = decision,
+      fill = decision
+    ),
+    alpha = 0.3
+  ) +
+  facet_zoom(
+    xlim = c(zeta_estimates_limits$lower[1], zeta_estimates_limits$upper[1])
+  )
+  
+```
+
+```{r}
+ggplot(zeta_estimates) +
+  geom_density(
+    aes(
+      x = zeta,
+      colour = decision,
+      fill = decision
+    ),
+    alpha = 0.3
+  ) +
+  facet_wrap(
+    facets = ~ species,
+    scales = "free"
+  )
+```
+
 
 Find best option for each simulation, i.e., the one that maximises the decision score, and find whether the best option, as well as each disclosure decision would result in a value above zero, i.e., and expected net benefit.
 ```{r best_option}
