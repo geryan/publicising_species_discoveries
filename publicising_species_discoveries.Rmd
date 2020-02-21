@@ -292,7 +292,10 @@ numdat <- numeric_data %>%
 numdat
 ```
 
-Separate out cost and benefit data, widen format, and determine type of distribution to be fit to estimates
+
+Separate out cost and benefit data, widen format, and determine type of distribution to be fit to estimates.
+
+*Where values are not given for some parameters (in the case of the Wollemi pine), the most likely value is imputed as the arithmetic mean of the upper and lower values, and the confidence that the value between the upper and lower bounds is given as 0.95.*
 ```{r cost_benefit}
 cost_benefit <- numdat %>%
   filter(type != "pd") %>%
