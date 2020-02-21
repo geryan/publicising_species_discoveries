@@ -1,4 +1,4 @@
-plot_dominance <- function(
+plot_cd_wide_zoom <- function(
   species,
   data,
   limits = NULL,
@@ -17,7 +17,12 @@ plot_dominance <- function(
     filter(species == sp)
   
   
-  result <- ggplot(x) +
+  result <- ggplot(x) + 
+    geom_vline(
+      xintercept = 0,
+      colour = "darkgrey",
+      size = 0.8
+    ) +
     geom_line(
       aes(
         x = value,

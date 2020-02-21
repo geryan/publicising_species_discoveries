@@ -20,11 +20,10 @@ library(tidyr)
 library(stringr)
 library(readxl)
 library(viridis)
-library(patchwork)
+#library(patchwork)
 library(magrittr)
 library(purrr)
 library(extraDistr)
-
 library(ggforce)
 library(cowplot)
 ```
@@ -36,10 +35,8 @@ source("functions/cumulative.density.R")
 source("functions/find.b.R")
 source("functions/find.lambda.R")
 source("functions/find.sigma.R")
-source("functions/plot_cd.R")
-source("functions/plot_fun_fig_2_box.R")
-source("functions/plot_fun_fig_2_box_2.R")
-source("functions/plot_fun_fig_2_violin.R")
+source("functions/plot_cd_wide_zoom.R")
+source("functions/plot_cd_zoom.R")
 source("functions/sample.fun.R")
 ```
 
@@ -61,6 +58,7 @@ example_data <- readxl::read_xlsx(
 
 example_data
 ```
+
 Calculate decision score, zeta, for each option
 ```{r example_results}
 example_results <- example_data %>%
@@ -559,114 +557,172 @@ zeta_estimates <- cost_benefit_all %>%
 zeta_estimates
 ```
 
+Minimum and maximum decision scores
+```{r zeta_estimates_minmax}
+zeta_estimates_minmax <- zeta_estimates %>%
+  group_by(species) %>%
+  summarise(
+    min = min(zeta),
+    max = max(zeta)
+  )
 
-Calculate the upper and lower bounds for plotting as for each species the highest of the 97.5th percentile decision score for each decision and lowest of the 2.5th percentile for each decision.
-```{r}
-zeta_estimates_limits <- zeta_estimates %>%
+zeta_estimates_minmax
+```
+
+Sequential values from min to max along each range
+```{r zeta_ranges}
+zeta_ranges <- zeta_estimates_minmax %$%
+  mapply(
+    FUN = seq,
+    from = min,
+    to = max,
+    MoreArgs = list(
+      length.out = 1000
+    )
+  )
+
+colnames(zeta_ranges) <- zeta_estimates_minmax$species
+
+zeta_ranges <- zeta_ranges %>%
+  as_tibble %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "species",
+    values_to = "value"
+  ) %>%
+  arrange(species, value)
+
+zeta_ranges
+```
+
+Clculate the cumlative density for each decision scenario at each value for each species
+```{r zeta_cd_wide}
+zeta_cd_wide <- zeta_ranges %>%
+  rowwise %>%
+  mutate(
+    Public = cumulative.density(
+      species,
+      value,
+      data = zeta_estimates,
+      nsamples = nsamples,
+      decision = "Public"
+    ),
+    Part = cumulative.density(
+      species,
+      value,
+      data = zeta_estimates,
+      nsamples = nsamples,
+      decision = "Part"
+    ),
+    Secret = cumulative.density(
+      species,
+      value,
+      data = zeta_estimates,
+      nsamples = nsamples,
+      decision = "Secret"
+    )
+  ) 
+
+zeta_cd_wide
+```
+
+```{r zeta_dominance}
+zeta_dominance <- zeta_cd_wide %>%
+  group_by(species) %>%
+  summarise(
+    Public_Part   = sum(Public <= Part)   == nsamples,
+    Public_Secret = sum(Public <= Secret) == nsamples,
+    Part_Public   = sum(Part <= Public)   == nsamples,
+    Part_Secret   = sum(Part <= Secret)   == nsamples,
+    Secret_Public = sum(Secret <= Public) == nsamples,
+    Secret_Part   = sum(Secret <= Part)   == nsamples
+  ) %>%
+  pivot_longer(
+    cols = -species,
+    names_to = "dominance",
+    values_to = "dominates"
+  ) %>%
+  mutate(
+    dominant = sub(
+      pattern = "_.*",
+      "",
+      dominance
+    ),
+    dominated = sub(
+      pattern = ".*_",
+      "",
+      dominance
+    )
+  ) %>%
+  select(species, dominant, dominates, dominated) %>%
+  pivot_wider(
+    id_cols = c(species, dominant),
+    names_from = dominated,
+    values_from = dominates
+  )
+
+zeta_dominance
+```
+
+```{r write zeta_dominace}
+# write.csv(
+#   x = zeta_dominance,
+#   file = "output/table_s6.csv",
+#   row.names = FALSE
+# )
+```
+
+
+```{r zeta_cd_limits}
+Zeta_cd_limits <- zeta_estimates %>%
   group_by(species, decision) %>%
   summarise(
-    p2.5 = quantile(
+    low = quantile(
       x = zeta,
-      probs = 0.05
+      probs = 0.1
     ),
-    p97.5 = quantile(
+    high = quantile(
       x = zeta,
-      probs = 0.95
+      probs = 0.9
     )
   ) %>%
   group_by(species) %>%
   summarise(
-    lower = min(p2.5),
-    upper = max(p97.5)
+    lower = min(low),
+    upper = max(high)
   )
 
-zeta_estimates_limits
+Zeta_cd_limits
 ```
 
-```{r}
-zeta_estimates_limits2 <- zeta_estimates %>%
-  group_by(species, decision) %>%
-  summarise(
-    p2.5 = quantile(
-      x = zeta,
-      probs = 0.25
-    ),
-    p97.5 = quantile(
-      x = zeta,
-      probs = 0.75
-    )
+Transform cumulative densitiy to long format for plotting
+```{r zeta_cd}
+zeta_cd <- zeta_cd_wide %>%
+  pivot_longer(
+    cols = c(Public, Part, Secret),
+    names_to = "decision",
+    values_to = "cd"
   ) %>%
-  group_by(species) %>%
-  summarise(
-    lower = min(p2.5),
-    upper = max(p97.5)
+  mutate(
+    decision = factor(
+      decision,
+      levels = c(
+        "Public",
+        "Part",
+        "Secret"
+      )
+    )
   )
 
-zeta_estimates_limits2
+zeta_cd
 ```
 
 
-Plot results for figure 2
+## Figure 2
 
-
-Assemble boxplots
-```{r figure_2}
+```{r fig2_list}
 fig2_list <- mapply(
-  FUN = plot_fun_fig_2_box,
-  species = unique(zeta_estimates$species),
-   xlab = c(
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    TRUE,
-    FALSE
-  ),
-  ylab = c(
-    TRUE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE
-  ),
-  xtext = c(
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    TRUE,
-    TRUE,
-    TRUE
-  ),
-  MoreArgs = list(
-    data = zeta_estimates,
-    limits = zeta_estimates_limits,
-    textsize = 9
-  ),
-  SIMPLIFY = FALSE
-)
-
-
-figure_2 <- fig2_list[[1]] +
-  fig2_list[[2]] +
-  fig2_list[[3]] +
-  fig2_list[[4]] +
-  fig2_list[[5]] +
-  fig2_list[[6]] +
-  fig2_list[[7]] +
-  guide_area() +
-  plot_layout(ncol = 4) +
-  plot_layout(guides = "collect")
-
-figure_2
-```
-
-```{r}
-fig2_list2 <- mapply(
-  FUN = plot_fun_fig_2_box_2,
+  FUN = plot_cd_zoom,
   species = unique(zeta_estimates$species),
    xlab = c(
     FALSE,
@@ -686,43 +742,48 @@ fig2_list2 <- mapply(
     FALSE,
     FALSE
   ),
-  xtext = c(
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    TRUE,
-    TRUE
-  ),
+  # xtext = c(
+  #   FALSE,
+  #   FALSE,
+  #   FALSE,
+  #   FALSE,
+  #   FALSE,
+  #   TRUE,
+  #   TRUE
+  # ),
+  xtext = TRUE,
   MoreArgs = list(
-    data = zeta_estimates,
-    limits = zeta_estimates_limits2,
+    data = zeta_cd,
+    limits = Zeta_cd_limits,
     textsize = 10
   ),
   SIMPLIFY = FALSE
 )
 
-fig2_list2[[1]]
+fig2_list[[1]]
 ```
 
-```{r}
-f2legend <- get_legend(fig2_list2[[1]])
+```{r figure_2}
+#f2legend <- get_legend(fig2_list[[1]])
 
-f2 <- plot_grid(
+figure_2 <- plot_grid(
   NULL,
   NULL,
-  fig2_list2[[1]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
-  fig2_list2[[2]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
-  fig2_list2[[3]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
-  fig2_list2[[4]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
-  fig2_list2[[5]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
-  fig2_list2[[6]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
-  fig2_list2[[7]] + scale_fill_manual(values = viridis(3)[3:1], guide = FALSE),
-  #f2legend,
-  ncol = 2,
+  NULL,
+  NULL,
+  fig2_list[[1]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list[[2]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list[[3]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list[[4]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list[[5]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list[[6]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  fig2_list[[7]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  #fdlegend,
+  ncol = 4,
   align = "hv",
   labels = c(
+    "",
+    "",
     "",
     "",
     "Alpine tree-frog",
@@ -738,58 +799,17 @@ f2 <- plot_grid(
   label_size = 12,
   vjust = -0.01,
   hjust = 0,
-  rel_heights = c(0.1, 1, 1, 1, 1)
+  rel_heights = c(0.1, 1, 1)
 )
 
-f2
+figure_2
 ```
 
-```{r}
-png(
-  filename = "plots/f2.png",
-  width = 20,
-  height = 20,
-  units = "cm",
-  res = 300
-)
-f2
-dev.off()
-```
-
-```{r}
-
-figure_22 <- fig2_list2[[1]] +
-  fig2_list2[[2]] +
-  fig2_list2[[3]] +
-  fig2_list2[[4]] +
-  fig2_list2[[5]] +
-  fig2_list2[[6]] +
-  fig2_list2[[7]] +
-  guide_area() +
-  plot_layout(ncol = 4) +
-  plot_layout(guides = "collect")
-
-figure_22
-```
-
-```{r}
-png(
-  filename = "plots/figure_22.png",
-  width = 30,
-  height = 20,
-  units = "cm",
-  res = 300
-)
-figure_22
-dev.off()
-```
-
-
-```{r figure_2 png}
+```{r print figure_2}
 png(
   filename = "plots/figure_2.png",
   width = 20,
-  height = 15,
+  height = 12.5,
   units = "cm",
   res = 300
 )
@@ -797,9 +817,11 @@ figure_2
 dev.off()
 ```
 
-```{r}
+### Figure s1
+
+```{r figs1_list}
 figs1_list <- mapply(
-  FUN = plot_fun_fig_2_box,
+  FUN = plot_cd_wide_zoom,
   species = unique(zeta_estimates$species),
    xlab = c(
     FALSE,
@@ -807,11 +829,11 @@ figs1_list <- mapply(
     FALSE,
     FALSE,
     FALSE,
-    TRUE,
+    FALSE,
     FALSE
   ),
   ylab = c(
-    TRUE,
+    FALSE,
     FALSE,
     FALSE,
     FALSE,
@@ -819,83 +841,80 @@ figs1_list <- mapply(
     FALSE,
     FALSE
   ),
-  xtext = c(
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    TRUE,
-    TRUE,
-    TRUE
-  ),
+  # xtext = c(
+  #   FALSE,
+  #   FALSE,
+  #   FALSE,
+  #   FALSE,
+  #   FALSE,
+  #   TRUE,
+  #   TRUE
+  # ),
+  xtext = TRUE,
   MoreArgs = list(
-    data = zeta_estimates,
-    textsize = 9
+    data = zeta_cd,
+    limits = Zeta_cd_limits,
+    textsize = 10
   ),
   SIMPLIFY = FALSE
 )
 
+figs1_list[[1]]
+```
 
-figure_s1 <- figs1_list[[1]] +
-  figs1_list[[2]] +
-  figs1_list[[3]] +
-  figs1_list[[4]] +
-  figs1_list[[5]] +
-  figs1_list[[6]] +
-  figs1_list[[7]] +
-  guide_area() +
-  plot_layout(ncol = 4) +
-  plot_layout(guides = "collect")
+```{r figure_s1}
+fs1legend <- get_legend(figs1_list[[1]])
 
+figure_s1 <- plot_grid(
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  figs1_list[[1]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  figs1_list[[2]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  figs1_list[[3]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  figs1_list[[4]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  figs1_list[[5]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  figs1_list[[6]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  figs1_list[[7]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
+  #fdlegend,
+  ncol = 4,
+  align = "hv",
+  labels = c(
+    "",
+    "",
+    "",
+    "",
+    "Alpine tree-frog",
+    "Giant Ibis",
+    "Red Handfish",
+    "Smooth Newt",
+    "Species1",
+    "Tiger",
+    "Wollemi Pine"#,
+    #""
+  ),
+  #label_fontface = "plain",
+  label_size = 12,
+  vjust = -0.01,
+  hjust = 0,
+  rel_heights = c(0.1, 1, 1)
+)
 
 figure_s1
 ```
 
-
-```{r figure_s1 png}
+Print figure_s1
+```{r print figure_s1}
 png(
   filename = "plots/figure_s1.png",
   width = 20,
-  height = 15,
+  height = 20,
   units = "cm",
   res = 300
 )
 figure_s1
 dev.off()
-```
-
-
-
-```{r}
-ggplot(zeta_estimates %>% filter(species == "Alpine tree-frog")) +
-  geom_density(
-    aes(
-      x = zeta,
-      colour = decision,
-      fill = decision
-    ),
-    alpha = 0.3
-  ) +
-  facet_zoom(
-    xlim = c(zeta_estimates_limits$lower[1], zeta_estimates_limits$upper[1])
-  )
-  
-```
-
-```{r}
-ggplot(zeta_estimates) +
-  geom_density(
-    aes(
-      x = zeta,
-      colour = decision,
-      fill = decision
-    ),
-    alpha = 0.3
-  ) +
-  facet_wrap(
-    facets = ~ species,
-    scales = "free"
-  )
 ```
 
 
@@ -957,8 +976,8 @@ best_option
 ```
 
 Summarise data into proportions for plotting.
-```{r}
-best_option_plot <- best_option %>%
+```{r best_option_proportion}
+best_option_proportion <- best_option %>%
   group_by(species, best) %>%
   summarise(n = n()) %>%
   mutate(
@@ -973,12 +992,12 @@ best_option_plot <- best_option %>%
     )
   )
 
-best_option_plot
+best_option_proportion
 ```
 
 
-```{r}
-worst_option_plot <- best_option %>%
+```{r worst_option_proportion}
+worst_option_proportion <- best_option %>%
   group_by(species, worst) %>%
   summarise(n = n()) %>%
   mutate(
@@ -993,13 +1012,14 @@ worst_option_plot <- best_option %>%
     )
   )
 
-worst_option_plot
+worst_option_proportion
 ```
 
 
-Plot as figure 3.
-```{r fig3}
-figure_3a <- ggplot(best_option_plot) +
+## Figure 3.
+Best (a) ...
+```{r fig3a}
+figure_3a <- ggplot(best_option_proportion) +
   geom_bar(
     aes(
       x = species,
@@ -1029,8 +1049,9 @@ figure_3a <- ggplot(best_option_plot) +
 figure_3a
 ```
 
-```{r}
-figure_3b <- ggplot(worst_option_plot) +
+... and worst (b) options. 
+```{r fig3b}
+figure_3b <- ggplot(worst_option_proportion) +
   geom_bar(
     aes(
       x = species,
@@ -1061,8 +1082,8 @@ figure_3b <- ggplot(worst_option_plot) +
 figure_3b
 ```
 
-
-```{r}
+Figure 3
+```{r figure_3}
 figure_3 <- figure_3a +
   figure_3b  +
   plot_layout(guides = "collect") +
@@ -1071,7 +1092,7 @@ figure_3 <- figure_3a +
 figure_3
 ```
 
-```{r}
+```{r print figure_3}
 png(
   filename = "plots/figure_3.png",
   width = 20,
@@ -1083,9 +1104,9 @@ figure_3
 dev.off()
 ```
 
-
-```{r}
-best_option_table <-  best_option_plot %>%
+Table of proportion of times best option
+```{r best_option_table}
+best_option_table <-  best_option_proportion %>%
   pivot_wider(
     id_cols = species,
     names_from = best,
@@ -1101,8 +1122,9 @@ best_option_table <-  best_option_plot %>%
 best_option_table
 ```
 
-```{r}
-worst_option_table <-  worst_option_plot %>%
+And worst option
+```{r worst_option_table}
+worst_option_table <-  worst_option_proportion %>%
   pivot_wider(
     id_cols = species,
     names_from = worst,
@@ -1136,8 +1158,8 @@ write.csv(
 )
 ```
 
-
-```{r}
+Table of proportion of times decision score is >0
+```{r net_benefit_table}
 net_benefit_table <- best_option %>%
   group_by(
     species
@@ -1161,8 +1183,8 @@ write.csv(
 )
 ```
 
-
-```{r}
+Transform for plotting
+```{r net_benefit_plot}
 net_benefit_plot <- net_benefit_table %>%
   pivot_longer(
     cols = -species,
@@ -1184,8 +1206,10 @@ net_benefit_plot <- net_benefit_table %>%
 net_benefit_plot
 ```
 
-```{r fig4}
-figure_4 <- ggplot(net_benefit_plot) +
+
+### Figure s2
+```{r figs2}
+figure_s2 <- ggplot(net_benefit_plot) +
   geom_bar(
     aes(
       x = Decision,
@@ -1215,296 +1239,23 @@ figure_4 <- ggplot(net_benefit_plot) +
   ) +
   ylim(c(0,1))
 
-figure_4
+figure_s2
 ```
 
 
-```{r save fig4}
+```{r save figs2}
 png(
-  filename = "plots/figure_4.png",
+  filename = "plots/figure_s2.png",
   width = 20,
   height = 12.5,
   units = "cm",
   res = 300
 )
-figure_4
+figure_s2
 dev.off()
 ```
 
 
-```{r}
-zeta_estimates_minmax <- zeta_estimates %>%
-  group_by(species) %>%
-  summarise(
-    min = min(zeta),
-    max = max(zeta)
-  )
-
-zeta_estimates_minmax
-```
-
-```{r}
-zeta_ranges <- zeta_estimates_minmax %$%
-  mapply(
-    FUN = seq,
-    from = min,
-    to = max,
-    MoreArgs = list(
-      length.out = 1000
-    )
-  )
-
-colnames(zeta_ranges) <- zeta_estimates_minmax$species
-
-zeta_ranges <- zeta_ranges %>%
-  as_tibble %>%
-  pivot_longer(
-    cols = everything(),
-    names_to = "species",
-    values_to = "value"
-  ) %>%
-  arrange(species, value)
-
-zeta_ranges
-```
-
-```{r}
-zeta_cd_wide <- zeta_ranges %>%
-  rowwise %>%
-  mutate(
-    Public = cumulative.density(
-      species,
-      value,
-      data = zeta_estimates,
-      nsamples = nsamples,
-      decision = "Public"
-    ),
-    Part = cumulative.density(
-      species,
-      value,
-      data = zeta_estimates,
-      nsamples = nsamples,
-      decision = "Part"
-    ),
-    Secret = cumulative.density(
-      species,
-      value,
-      data = zeta_estimates,
-      nsamples = nsamples,
-      decision = "Secret"
-    )
-  ) 
-
-zeta_cd_wide
-```
-
-
-```{r}
-zeta_cd <- zeta_cd_wide %>%
-  pivot_longer(
-    cols = c(Public, Part, Secret),
-    names_to = "decision",
-    values_to = "cd"
-  ) %>%
-  mutate(
-    decision = factor(
-      decision,
-      levels = c(
-        "Public",
-        "Part",
-        "Secret"
-      )
-    )
-  )
-
-zeta_cd
-```
-
-```{r}
-zeta_dominance <- zeta_cd_wide %>%
-  group_by(species) %>%
-  summarise(
-    Public_Part   = sum(Public <= Part)   == nsamples,
-    Public_Secret = sum(Public <= Secret) == nsamples,
-    Part_Public   = sum(Part <= Public)   == nsamples,
-    Part_Secret   = sum(Part <= Secret)   == nsamples,
-    Secret_Public = sum(Secret <= Public) == nsamples,
-    Secret_Part   = sum(Secret <= Part)   == nsamples
-  ) %>%
-  pivot_longer(
-    cols = -species,
-    names_to = "dominance",
-    values_to = "dominates"
-  ) %>%
-  mutate(
-    dominant = sub(
-      pattern = "_.*",
-      "",
-      dominance
-    ),
-    dominated = sub(
-      pattern = ".*_",
-      "",
-      dominance
-    )
-  ) %>%
-  select(species, dominant, dominates, dominated) %>%
-  pivot_wider(
-    id_cols = c(species, dominant),
-    names_from = dominated,
-    values_from = dominates
-  )
-
-zeta_dominance
-```
-
-```{r}
-write.csv(
-  x = zeta_dominance,
-  file = "output/table_s6.csv",
-  row.names = FALSE
-)
-
-```
-
-
-```{r}
-ggplot(zeta_cd) +
-  geom_line(
-    aes(
-      x = value,
-      y = cd,
-      colour = decision
-    )
-  ) +
-  facet_wrap(
-    facets = ~ species,
-    nrow = 2,
-    scales = "free_x"
-  )
-```
-
-
-```{r}
-Zeta_cd_limits <- zeta_estimates %>%
-  group_by(species, decision) %>%
-  summarise(
-    p2.5 = quantile(
-      x = zeta,
-      probs = 0.1
-    ),
-    p97.5 = quantile(
-      x = zeta,
-      probs = 0.9
-    )
-  ) %>%
-  group_by(species) %>%
-  summarise(
-    lower = min(p2.5),
-    upper = max(p97.5)
-  )
-
-Zeta_cd_limits
-```
-
-
-dominance plots
-```{r}
-figd_list <- mapply(
-  FUN = plot_cd,
-  species = unique(zeta_estimates$species),
-   xlab = c(
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE
-  ),
-  ylab = c(
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE,
-    FALSE
-  ),
-  # xtext = c(
-  #   FALSE,
-  #   FALSE,
-  #   FALSE,
-  #   FALSE,
-  #   FALSE,
-  #   TRUE,
-  #   TRUE
-  # ),
-  xtext = TRUE,
-  MoreArgs = list(
-    data = zeta_cd,
-    limits = Zeta_cd_limits,
-    textsize = 10
-  ),
-  SIMPLIFY = FALSE
-)
-
-figd_list[[1]]
-```
-
-```{r}
-fdlegend <- get_legend(figd_list[[1]])
-
-fd <- plot_grid(
-  NULL,
-  NULL,
-  NULL,
-  NULL,
-  figd_list[[1]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
-  figd_list[[2]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
-  figd_list[[3]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
-  figd_list[[4]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
-  figd_list[[5]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
-  figd_list[[6]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
-  figd_list[[7]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
-  #fdlegend,
-  ncol = 4,
-  align = "hv",
-  labels = c(
-    "",
-    "",
-    "",
-    "",
-    "Alpine tree-frog",
-    "Giant Ibis",
-    "Red Handfish",
-    "Smooth Newt",
-    "Species1",
-    "Tiger",
-    "Wollemi Pine"#,
-    #""
-  ),
-  #label_fontface = "plain",
-  label_size = 12,
-  vjust = -0.01,
-  hjust = 0,
-  rel_heights = c(0.1, 1, 1)
-)
-
-fd
-```
-
-```{r}
-png(
-  filename = "plots/figure_d.png",
-  width = 20,
-  height = 20,
-  units = "cm",
-  res = 300
-)
-fd
-dev.off()
-```
 
 
 
@@ -1629,8 +1380,8 @@ costs_entities <- costs %>% filter(group == "entities")
 ```
 
 
-```{r fig5a}
-figure_5a <- ggplot(benefits_kind) +
+```{r fig4a}
+figure_4a <- ggplot(benefits_kind) +
   geom_bar(
     aes(
       x = response,
@@ -1648,11 +1399,11 @@ figure_5a <- ggplot(benefits_kind) +
     axis.title.x = element_blank()
   )
 
-figure_5a
+figure_4a
 ```
 
-```{r fig5c}
-figure_5c <- ggplot(benefits_entities) +
+```{r fig4c}
+figure_4c <- ggplot(benefits_entities) +
   geom_bar(
     aes(
       x = response,
@@ -1674,11 +1425,11 @@ figure_5c <- ggplot(benefits_entities) +
   )+
   coord_flip()
 
-figure_5c
+figure_4c
 ```
 
-```{r fig5e}
-figure_5e <- ggplot(benefits_source) +
+```{r fig4e}
+figure_4e <- ggplot(benefits_source) +
   geom_bar(
     aes(
       x = response,
@@ -1693,11 +1444,11 @@ figure_5e <- ggplot(benefits_source) +
   ylim(0, 100) +
   coord_flip()
 
-figure_5e
+figure_4e
 ```
 
-```{r fig5b}
-figure_5b <- ggplot(costs_kind) +
+```{r fig4b}
+figure_4b <- ggplot(costs_kind) +
   geom_bar(
     aes(
       x = response,
@@ -1718,11 +1469,11 @@ figure_5b <- ggplot(costs_kind) +
   ) +
   coord_flip()
 
-figure_5b
+figure_4b
 ```
 
-```{r fig5d}
-figure_5d <- ggplot(costs_entities) +
+```{r fig4d}
+figure_4d <- ggplot(costs_entities) +
   geom_bar(
     aes(
       x = response,
@@ -1737,15 +1488,15 @@ figure_5d <- ggplot(costs_entities) +
   ylim(0, 100) +
   coord_flip()
 
-figure_5d
+figure_4d
 ```
 
-```{r fig5}
-figure_5 <- figure_5a +
-  figure_5b +
-  figure_5c +
-  figure_5d +
-  figure_5e +
+```{r fig4}
+figure_4 <- figure_4a +
+  figure_4b +
+  figure_4c +
+  figure_4d +
+  figure_4e +
   plot_layout(
     ncol = 2
   ) +
@@ -1753,18 +1504,18 @@ figure_5 <- figure_5a +
     tag_levels = "a"
   )
 
-figure_5
+figure_4
 ```
 
-```{r save fig5}
+```{r save fig4}
 png(
-  filename = "plots/figure_5.png",
+  filename = "plots/figure_4.png",
   width = 20,
   height = 15,
   units = "cm",
   res = 300
 )
-figure_5
+figure_4
 dev.off()
 ```
 

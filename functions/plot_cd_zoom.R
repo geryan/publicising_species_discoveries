@@ -1,4 +1,4 @@
-plot_cd <- function(
+plot_cd_zoom <- function(
   species,
   data,
   limits = NULL,
@@ -17,7 +17,12 @@ plot_cd <- function(
     filter(species == sp)
   
   
-  result <- ggplot(x) +
+  result <- ggplot(x) + 
+    geom_vline(
+      xintercept = 0,
+      colour = "darkgrey",
+      size = 0.8
+    ) +
     geom_line(
       aes(
         x = value,
@@ -66,10 +71,7 @@ plot_cd <- function(
     limupp <- ifelse(limupp < 0, 0, limupp)
     
     result <- result + 
-      facet_zoom(
-        xlim = c(limlow, limupp),
-        zoom.size = 1
-      )
+      xlim(limlow, limupp)
   }
   
   
