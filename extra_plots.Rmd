@@ -1,0 +1,61 @@
+---
+title: "Extra plots"
+author: "GE Ryan"
+date: "26/02/2020"
+output: html_document
+---
+
+Relies on having run `publicising_species_discoveries.Rmd` and all objects it creates are in memory.
+
+Wollemi pine density
+```{r}
+woll_density_all <- ggplot(
+  data = zeta_estimates %>%
+    filter(species == "Wollemi Pine")
+) +
+  geom_density(
+    aes(
+      x = zeta,
+      colour = decision,
+      fill = decision
+    ),
+    alpha = 0.6,
+    size = 1
+  ) +
+  scale_fill_viridis_d() +
+  scale_colour_viridis_d() +
+  xlab("Decision score") +
+  lims(
+    x = c(-131, 224),
+    y = c(0, 0.031)
+  )
+
+woll_density_all
+```
+
+```{r}
+woll_density_all <- ggplot(
+  data = zeta_estimates %>%
+    filter(species == "Wollemi Pine")%>%
+    filter(decision == "Part")
+) +
+  geom_density(
+    aes(
+      x = zeta,
+      colour = decision,
+      fill = decision
+    ),
+    alpha = 0.6,
+    size = 1
+  ) +
+  scale_fill_viridis_d(begin = 0.5) +
+  scale_colour_viridis_d(begin = 0.5) +
+  xlab("Decision score") +
+  lims(
+    x = c(-131, 224),
+    y = c(0, 0.031)
+  )
+
+woll_density_all
+```
+
