@@ -1,0 +1,129 @@
+---
+title: "Extra plots"
+author: "GE Ryan"
+date: "26/02/2020"
+output: html_document
+---
+
+
+```{r}
+wollemi_density_all <- ggplot(
+  data = zeta_estimates %>%
+    filter(species == "Wollemi Pine")
+) +
+  geom_density(
+    aes(
+      x = zeta,
+      colour = decision,
+      fill = decision
+    ),
+    alpha = 0.6
+  ) +
+  scale_colour_viridis_d() +
+  scale_fill_viridis_d() +
+  lims(
+    x = c(-131, 224),
+    y = c(0, 0.032)
+  ) +
+  labs(
+    x = "Decision score",
+    y = "Density"
+  )
+
+wollemi_density_all
+```
+
+
+```{r}
+wollemi_density_part <- ggplot(
+  data = zeta_estimates %>%
+    filter(species == "Wollemi Pine") %>%
+    filter(decision == "Part")
+) +
+  geom_density(
+    aes(
+      x = zeta,
+      colour = decision,
+      fill = decision
+    ),
+    alpha = 0.6
+  ) +
+  scale_colour_viridis_d(begin = 0.5) +
+  scale_fill_viridis_d(begin = 0.5) +
+  lims(
+    x = c(-131, 224),
+    y = c(0, 0.032)
+  ) +
+  labs(
+    x = "Decision score",
+    y = "Density"
+  )
+
+wollemi_density_part
+```
+
+```{r }
+png(
+  filename = "plots/wollemi_density_all.png",
+  width = 20,
+  height = 10,
+  units = "cm",
+  res = 300
+)
+wollemi_density_all
+dev.off()
+```
+
+
+```{r }
+png(
+  filename = "plots/wollemi_density_part.png",
+  width = 20,
+  height = 10,
+  units = "cm",
+  res = 300
+)
+wollemi_density_part
+dev.off()
+```
+
+
+```{r}
+wollemi_cd <- ggplot(
+  data = zeta_cd %>%
+    filter(species == "Wollemi Pine")
+) +
+    geom_vline(
+      xintercept = 0,
+      colour = "darkgrey",
+      size = 0.8
+    ) +
+  geom_line(
+    aes(
+      x = value,
+      y = cd,
+      colour = decision
+    ),
+    size = 0.8
+  ) +
+  scale_colour_viridis_d() +
+  labs(
+    x = "Decision score",
+    y = "Cumulative density"
+  )
+
+wollemi_cd
+```
+
+```{r}
+png(
+  filename = "plots/wollemi_cd.png",
+  width = 20,
+  height = 10,
+  units = "cm",
+  res = 300
+)
+wollemi_cd
+dev.off()
+```
+
