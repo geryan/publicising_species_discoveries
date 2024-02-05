@@ -1,8 +1,10 @@
 ---
-title: "Data analysis and graphics for: The costs and benefits of publicising species
-  discoveries."
+title: 'Data analysis and graphics for: The costs and benefits of publicising species
+  discoveries.'
 author: "GE Ryan"
 output:
+  html_document:
+    df_print: paged
   html_notebook: default
 ---
 
@@ -49,7 +51,8 @@ set.seed(1984)
 
 # Example scenarios
 
-Load data
+Load data. 
+Data available from download at [DOI: 10.26188/11357126](https://dx.doi/10.26188/11357126)
 ```{r load example}
 example_data <- readxl::read_xlsx(
   path = "data/species_publicity_data.xlsx",
@@ -201,7 +204,8 @@ write.csv(
 ```
 
 # Questionnaire numeric estimates of cost and benefits
-Read in numeric questionnaire data
+Read in numeric questionnaire data.
+As above, data available from download at [DOI: 10.26188/11357126](https://dx.doi/10.26188/11357126)
 ```{r numeric_data}
 numeric_data <- readxl::read_xlsx(
   path = "data/species_publicity_data.xlsx",
