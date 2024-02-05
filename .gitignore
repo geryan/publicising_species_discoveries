@@ -7,3 +7,4 @@ plots
 output
 *.html
 *.pdf
+*.DS_Store
