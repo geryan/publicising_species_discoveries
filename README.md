@@ -5,6 +5,6 @@ Code for: *The costs and benefits of publicising species discoveries* by GE Ryan
 
 - Access data: [Figshare DOI 10.26188/11357126](https://doi.org/10.26188/11357126)
 
-- Cite this code: [Zenodo DOI 10.5281/zenodo.10622197](https://doi.org/10.5281/zenodo.10622197)
+- Cite this code: [Zenodo DOI 10.5281/zenodo.10622196](https://zenodo.org/doi/10.5281/zenodo.10622196)
 
 - Repeat analyses in the manuscript: [publicising_species_discoveries.Rmd](publicising_species_discoveries.md)
