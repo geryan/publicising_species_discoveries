@@ -57,6 +57,15 @@
     ## 
     ##     align_plots
 
+    library(gridExtra)
+
+    ## 
+    ## Attaching package: 'gridExtra'
+
+    ## The following object is masked from 'package:dplyr':
+    ## 
+    ##     combine
+
 Load functions
 
     source("functions/calculate.zeta.R")
@@ -942,7 +951,7 @@ Sequential values from min to max along each range
     ## 10 Alpine tree-frog -10665094.
     ## # ℹ 6,990 more rows
 
-Clculate the cumlative density for each decision scenario at each value
+Calculate the cumlative density for each decision scenario at each value
 for each species
 
     zeta_cd_wide <- zeta_ranges %>%
@@ -1169,7 +1178,9 @@ Transform cumulative densitiy to long format for plotting
 
 ![](publicising_species_discoveries_files/figure-markdown_strict/fig2_list-1.png)
 
-    #f2legend <- get_legend(fig2_list[[1]])
+    f2legend <- get_legend(fig2_list[[1]] + guides(col = guide_legend(ncol = 1))) 
+
+    ## Warning: Removed 2739 rows containing missing values (`geom_line()`).
 
     figure_2 <- plot_grid(
       NULL,
@@ -1183,7 +1194,7 @@ Transform cumulative densitiy to long format for plotting
       fig2_list[[5]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
       fig2_list[[6]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
       fig2_list[[7]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
-      #fdlegend,
+      f2legend,
       ncol = 4,
       align = "hv",
       labels = c(
@@ -1204,8 +1215,10 @@ Transform cumulative densitiy to long format for plotting
       label_size = 12,
       vjust = -0.01,
       hjust = 0,
-      rel_heights = c(0.1, 1, 1)
-    )
+      rel_heights = c(0.1, 1, 1),
+      axis.titles = "collect"
+    ) %>%
+      grid.arrange(left = "Cumulative probability density", bottom = "Decision score")
 
     ## Scale for colour is already present.
     ## Adding another scale for colour, which will replace the existing scale.
@@ -1243,22 +1256,36 @@ Transform cumulative densitiy to long format for plotting
 
     ## Warning: Removed 2052 rows containing missing values (`geom_line()`).
 
-    figure_2
+    ## Warning in as_grob.default(plot): Cannot convert object of class character into
+    ## a grob.
+
+    ## Warning: Graphs cannot be vertically aligned unless the axis parameter is set.
+    ## Placing graphs unaligned.
+
+    ## Warning: Graphs cannot be horizontally aligned unless the axis parameter is
+    ## set. Placing graphs unaligned.
 
 ![](publicising_species_discoveries_files/figure-markdown_strict/figure_2-1.png)
 
-    png(
-      filename = "plots/figure_2.png",
-      width = 20,
-      height = 12.5,
-      units = "cm",
-      res = 300
-    )
     figure_2
-    dev.off()
 
-    ## quartz_off_screen 
-    ##                 2
+    ## TableGrob (2 x 2) "arrange": 3 grobs
+    ##   z     cells    name                grob
+    ## 1 1 (1-1,2-2) arrange      gtable[layout]
+    ## 2 2 (2-2,2-2) arrange text[GRID.text.821]
+    ## 3 3 (1-2,1-1) arrange text[GRID.text.822]
+
+    # png(
+    #   filename = "plots/figure_2_x.png",
+    #   width = 20,
+    #   height = 12.5,
+    #   units = "cm",
+    #   res = 300
+    # )
+    # figure_2
+    # dev.off() # some weird thing with gridExtra::grid.arrange makes this not work :shrug:
+
+    ggsave("plots/figure_2.png", plot = figure_2, width = 20, height = 12.5, units = "cm", dpi = 300)
 
 ### Figure s1
 

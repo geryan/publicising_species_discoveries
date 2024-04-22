@@ -6,6 +6,7 @@ output:
   html_document:
     df_print: paged
   html_notebook: default
+  #md_document
 ---
 
 
@@ -28,6 +29,7 @@ library(purrr)
 library(extraDistr)
 library(ggforce)
 library(cowplot)
+library(gridExtra)
 ```
 
 Load functions
@@ -602,7 +604,7 @@ zeta_ranges <- zeta_ranges %>%
 zeta_ranges
 ```
 
-Clculate the cumlative density for each decision scenario at each value for each species
+Calculate the cumlative density for each decision scenario at each value for each species
 ```{r zeta_cd_wide}
 zeta_cd_wide <- zeta_ranges %>%
   rowwise %>%
@@ -771,7 +773,7 @@ fig2_list[[1]]
 ```
 
 ```{r figure_2}
-#f2legend <- get_legend(fig2_list[[1]])
+f2legend <- get_legend(fig2_list[[1]] + guides(col = guide_legend(ncol = 1))) 
 
 figure_2 <- plot_grid(
   NULL,
@@ -785,7 +787,7 @@ figure_2 <- plot_grid(
   fig2_list[[5]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
   fig2_list[[6]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
   fig2_list[[7]] + scale_colour_manual(values = viridis(3)[3:1], guide = FALSE),
-  #fdlegend,
+  f2legend,
   ncol = 4,
   align = "hv",
   labels = c(
@@ -806,22 +808,26 @@ figure_2 <- plot_grid(
   label_size = 12,
   vjust = -0.01,
   hjust = 0,
-  rel_heights = c(0.1, 1, 1)
-)
+  rel_heights = c(0.1, 1, 1),
+  axis.titles = "collect"
+) %>%
+  grid.arrange(left = "Cumulative probability density", bottom = "Decision score")
 
 figure_2
 ```
 
 ```{r print figure_2}
-png(
-  filename = "plots/figure_2.png",
-  width = 20,
-  height = 12.5,
-  units = "cm",
-  res = 300
-)
-figure_2
-dev.off()
+# png(
+#   filename = "plots/figure_2_x.png",
+#   width = 20,
+#   height = 12.5,
+#   units = "cm",
+#   res = 300
+# )
+# figure_2
+# dev.off() # some weird thing with gridExtra::grid.arrange makes this not work :shrug:
+
+ggsave("plots/figure_2.png", plot = figure_2, width = 20, height = 12.5, units = "cm", dpi = 300)
 ```
 
 ### Figure s1
