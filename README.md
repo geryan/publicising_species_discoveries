@@ -1,7 +1,10 @@
 # The costs and benefits of publicising species discoveries
-Code for: *The costs and benefits of publicising species discoveries* by GE Ryan, E Nicholson, CM Baker, & MA McCarthy.
 
-- Read preprint: [EcoEvoRxiv DOI 10.32942/X2Q02W](https://doi.org/10.32942/X2Q02W)
+GE Ryan, E Nicholson, CM Baker, & MA McCarthy (2024)
+
+*Conservation Letters* 17(5): e13044
+
+- Read the paper: [Conservation Letters DOI 10.1111/conl.130440](https://doi.org/10.1111/conl.130440)
 
 - Access data: [Figshare DOI 10.26188/11357126](https://doi.org/10.26188/11357126)
 
